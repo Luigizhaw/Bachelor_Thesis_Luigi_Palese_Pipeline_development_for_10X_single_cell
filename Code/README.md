@@ -1,4 +1,4 @@
-### SLURMs and R Script Overview
+# SLURMs and R Script Overview
 
 This README file contains deteiled information about the structure and usage of the used SLURMs and R Script.
 
@@ -23,14 +23,14 @@ These scripts handle job submission to the SLURM workload manager on the HPC ear
 ## Files
 
 ### `submit_pipeline.sh`
-SLURM submission script for the PBMC 1k v3 dataset (single-lane sequencing).
+SLURM submission script for the PBMC 1k v3 dataset.
 
 ### `submit_pipeline_2.sh`
-SLURM submission script for the Brain Tumor 3p dataset (multi-lane sequencing).
+SLURM submission script for the Brain Tumor 3p dataset (Included to show difference in path definition of the input fastqs).
 
 ## Script Structure
 
-Both scripts follow identical SLURM configuration with different target processing scripts:
+Both scripts follow identical SLURM configuration:
 
 ```
 #!/bin/bash
@@ -149,7 +149,7 @@ mkdir -p "$gene_out" "$output_dir/config" "$output_dir/logs"
 **Purpose**:
 - Creates unique timestamped run identifier
 - Sets up organized directory structure
-- Ensures no conflicts between simultaneous runs
+- Ensures no conflicts between simultaneous runs as long as they have a difference in timestamps (1 minute)
 
 **Directory Structure Created**:
 ```
@@ -202,17 +202,6 @@ STAR --runThreadN 8 \
 | `--soloFeatures Gene` | Gene-level | Count reads per gene |
 | `--soloBarcodeReadLength 0` | Auto-detect | Automatic barcode length detection |
 
-#### Input File Differences
-
-**Single-lane (PBMC)**:
-- 2 lanes combined with comma separation
-- STARsolo automatically concatenates lanes
-
-**Multi-lane (Brain Tumor)**:
-- 4 lanes combined with comma separation
-- STARsolo automatically concatenates lanes
-
-
 ### 3. Output Compression
 
 ```bash
@@ -244,11 +233,6 @@ Rscript "${base_dir}/R/seurat_analysis_complete_12.R" \
   --output_dir "${output_dir}" \
   --prefix "${run_id}_"
 ```
-
-**Parameter passing**:
-- `input_dir`: STARsolo filtered output directory
-- `output_dir`: Run-specific output directory
-- `prefix`: Unique run identifier for file naming
 
 ## Directory Structure and File Paths
 
