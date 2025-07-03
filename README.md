@@ -20,7 +20,7 @@ This repository contains a modular pipeline for preprocessing, analyzing, and vi
 │   └── seuratenv_enhanced.yml  # Conda environment for R
 │
 └── README.md
----
+```
 
 ## Requirements
 
