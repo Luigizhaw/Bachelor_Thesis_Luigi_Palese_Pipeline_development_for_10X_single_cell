@@ -4,7 +4,7 @@ This repository contains a modular pipeline for preprocessing, analyzing, and vi
 
 ## Repository Structure
 
-.
+
 ├── Code/
 │   ├── submit_pipeline.sh      # SLURM job submission wrapper
 │   ├── submit_pipeline_2.sh    # Alternative SLURM logic (optional)
