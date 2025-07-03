@@ -6,20 +6,20 @@ This repository contains a modular pipeline for preprocessing, analyzing, and vi
 
 .
 ├── Code/
-│   ├── run_pipeline.sh         # Core alignment and quantification script using STARsolo
-│   ├── run_pipeline_2.sh       # Variant version (optional)
 │   ├── submit_pipeline.sh      # SLURM job submission wrapper
 │   ├── submit_pipeline_2.sh    # Alternative SLURM logic (optional)
-│   └── seurat_analysis.R       # R script for downstream analysis using Seurat
+│   ├── run_pipeline.sh         # Core alignment and quantification script using STARsolo
+│   ├── run_pipeline_2.sh       # Variant version for brain tumor dataset (optional)
+│   ├── seurat_analysis.R       # R script for downstream analysis using Seurat
+│   └── README.md               # Documentation explaining SLURMs and R script components
 │
 ├── requirements/
-│   └── seuratenv_enhanced.yml  # Conda environment for R + Seurat
+│   └── seuratenv_enhanced.yml  # Conda environment for R
 │
 └── README.md
 
 ## Requirements
 
-- Linux-based environment or HPC cluster with SLURM
 - STAR (v2.7.10a or newer)
 - R (v4.2.0 or newer)
 - Conda (Anaconda or Miniconda)
@@ -33,7 +33,7 @@ conda activate seurat_env_3
 
 To run the full pipeline on an HPC cluster:
 
-bash Code/submit_pipeline.sh
+sbatch Code/submit_pipeline.sh
 
 This script:
 - Calls `run_pipeline.sh` for alignment and count matrix generation using STARsolo
@@ -70,13 +70,9 @@ Each pipeline run produces:
   - UMAP/t-SNE dimensionality reductions
   - Cell clustering and annotations
   - Differential expression and functional scoring
-
-## Notes
-
-- STARsolo is configured with `--soloBarcodeReadLength 0` to ensure compatibility with 10X barcodes.
-- Multi-lane FASTQ support is built-in (e.g., L001–L004).
-- Tested on both small (PBMC) and complex (brain tumor) datasets.
-- Output structure is fully reproducible and time-stamped.
+  - Interactive Dashboard
+ 
+A more detailed documentation about the results can be found on the OneDrive folder
 
 ## Credits
 
