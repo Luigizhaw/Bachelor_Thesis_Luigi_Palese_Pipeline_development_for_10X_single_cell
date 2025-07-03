@@ -55,7 +55,7 @@ Download full datasets and outputs from:
 https://your-onedrive-link-here
 
 Directory structure on OneDrive:
-
+```
 Datasets/
 ├── pbmc_1k_v3_fastqs/          # PBMC 1k dataset (2 sequencing lanes)
 ├── Brain_Tumor_3p_fastqs/      # Brain tumor dataset (4 sequencing lanes)
@@ -63,7 +63,7 @@ Datasets/
 Outputs_Pipeline/
 ├── Output_1k_PBMC/             # STARsolo + Seurat output for PBMC
 ├── Output_brain_tumor_3p/      # STARsolo + Seurat output for brain tumor
-
+```
 ## Output Overview
 
 Each pipeline run produces:
