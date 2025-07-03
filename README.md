@@ -4,9 +4,6 @@ This repository contains a modular pipeline for preprocessing, analyzing, and vi
 
 ## Repository Structure
 
-
-## Repository Structure
-
 ```
 ├── Code/
 │   ├── submit_pipeline.sh      # SLURM job submission wrapper
@@ -77,6 +74,30 @@ Each pipeline run produces:
   - Interactive Dashboard
  
 A more detailed documentation about the results can be found on the OneDrive folder
+
+### Base Directory Structure used in the project
+```
+/cfs/earth/scratch/paleslui/BATH/
+├── genomeDir/                      # STAR genome index
+│   ├── Genome                      # Genome sequences
+│   ├── SA                          # Suffix array
+│   ├── SAindex                     # Index files
+│   └── whitelist.txt              # Valid cell barcodes
+├── pbmc_1k_v3_fastqs/             # PBMC dataset
+│   ├── pbmc_1k_v3_S1_L001_R1_001.fastq.gz
+│   └── pbmc_1k_v3_S1_L001_R2_001.fastq.gz
+├── Brain_Tumor_3p_fastqs/         # Brain tumor dataset
+│   ├── Brain_Tumor_3p_S2_L001_R1_001.fastq.gz
+│   ├── Brain_Tumor_3p_S2_L001_R2_001.fastq.gz
+│   ├── ... (L002, L003, L004)
+├── R/                             # R analysis scripts
+│   └── seurat_analysis_complete_12.R
+└── SLURMs/                        # Pipeline scripts
+    ├── submit_pipeline.sh
+    ├── submit_pipeline_2.sh
+    ├── run_pipeline.sh
+    └── run_pipeline_2.sh
+```
 
 ## Credits
 
