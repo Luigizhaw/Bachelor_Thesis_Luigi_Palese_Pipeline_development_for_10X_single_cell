@@ -1,6 +1,6 @@
 # SLURMs and R Script Overview
 
-This README file contains deteiled information about the structure and usage of the used SLURMs and R Script.
+This README file contains detailed information about the structure and usage of the used SLURMs and R Script.
 
 ## Pipeline Workflow
 
