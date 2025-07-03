@@ -234,33 +234,6 @@ Rscript "${base_dir}/R/seurat_analysis_complete_12.R" \
   --prefix "${run_id}_"
 ```
 
-## Directory Structure and File Paths
-
-### Base Directory Structure
-```
-/cfs/earth/scratch/paleslui/BATH/
-├── genomeDir/                      # STAR genome index
-│   ├── Genome                      # Genome sequences
-│   ├── SA                          # Suffix array
-│   ├── SAindex                     # Index files
-│   └── whitelist.txt              # Valid cell barcodes
-├── pbmc_1k_v3_fastqs/             # PBMC dataset
-│   ├── pbmc_1k_v3_S1_L001_R1_001.fastq.gz
-│   └── pbmc_1k_v3_S1_L001_R2_001.fastq.gz
-├── Brain_Tumor_3p_fastqs/         # Brain tumor dataset
-│   ├── Brain_Tumor_3p_S2_L001_R1_001.fastq.gz
-│   ├── Brain_Tumor_3p_S2_L001_R2_001.fastq.gz
-│   ├── ... (L002, L003, L004)
-├── R/                             # R analysis scripts
-│   └── seurat_analysis_complete_12.R
-└── SLURMs/                        # Pipeline scripts
-    ├── submit_pipeline.sh
-    ├── submit_pipeline_2.sh
-    ├── run_pipeline.sh
-    └── run_pipeline_2.sh
-```
-
-
 ## Best Practices
 
 ### Resource Management
@@ -281,15 +254,652 @@ Rscript "${base_dir}/R/seurat_analysis_complete_12.R" \
 ## Integration Notes
 
 ### File Paths
-All paths are configured for the BATH project structure:
+All paths are configured for the BATH project structure and can be adjusted in the run_pipeline.sh file:
 - **Base directory**: `/cfs/earth/scratch/paleslui/BATH`
 - **Scripts location**: `/cfs/earth/scratch/paleslui/BATH/SLURMs/`
 - **Log directory**: `/cfs/earth/scratch/paleslui/BATH/output/runs/logs/`
 
-These need to be adjusted in the run_
 
 ### Environment Requirements
 The target bash scripts handle:
 - Conda environment activation
 - Tool availability verification
 - Output directory creation
+
+# R Script
+
+## Dependencies and Setup
+
+Specific dependencies used in this project are all found in the .yml file in the requirements folder of this repository, the most important packages are listed below.
+
+#### Core Analysis
+- `Seurat` - Main single-cell analysis framework
+- `optparse` - Command line argument parsing
+- `dplyr` - Data manipulation
+- `future` - Parallel processing
+
+#### Visualization
+- `ggplot2` - Static plotting
+- `patchwork` - Plot composition
+- `plotly` - Interactive visualizations
+- `viridis` - Color scales
+- `htmlwidgets` - Web widget creation
+
+#### Cell Type Annotation
+- `SingleR` - Reference-based cell type annotation
+
+#### Data Export
+- `jsonlite` - JSON export functionality
+- `reshape2` - Data reshaping
+
+## Command Line Arguments
+
+The pipeline accepts the following command line arguments:
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--input_dir` | character | Required | Path to 10X Genomics data directory |
+| `--output_dir` | character | Required | Base output directory |
+| `--prefix` | character | Required | Project name/prefix for outputs |
+| `--resolutions` | character | "0.1,0.3,0.5,0.8,1.0" | Clustering resolutions to test |
+| `--seed` | integer | 0 | Random seed (0 = random) |
+| `--ncores` | integer | 4 | Number of CPU cores for parallel processing |
+
+### Usage Example
+
+```bash
+Rscript seurat_analysis.R \
+  --input_dir /path/to/10x/data \
+  --output_dir /path/to/output \
+  --prefix my_experiment \
+  --resolutions "0.2,0.4,0.6,0.8" \
+  --seed 42 \
+  --ncores 8
+```
+
+## Pipeline Components
+
+### 1. Initialization and Setup
+
+#### Parallel Processing Configuration
+```r
+# Configures multicore processing based on ncores parameter
+if (ncores > 1) {
+  plan("multicore", workers = ncores)
+} else {
+  plan("sequential")
+}
+```
+
+#### Random Seed Management
+- If `seed = 0`: Generates random seed for reproducibility
+- If `seed > 0`: Uses specified seed
+- Ensures reproducible clustering and dimensionality reduction
+
+#### Output Directory Structure
+Creates organized directory structure:
+```
+output_dir/
+├── prefix_timestamp/
+│   ├── 01_QC/           # Quality control plots
+│   ├── 02_Clustering/   # Clustering results
+│   ├── 03_Markers/      # Marker gene analysis
+│   ├── 04_Functional/   # Functional analysis
+│   ├── 05_Interactive/  # Interactive dashboards
+│   └── 06_JSON_Export/  # JSON data exports
+```
+
+### 2. Enhanced Gene Signatures
+
+#### Functional Pathway Signatures
+The pipeline includes curated gene sets for human cells:
+
+```r
+get_human_gene_sets <- function() {
+  return(list(
+    # Cellular stress and response
+    inflammation = c("TNF", "IL1B", "IL6", "NFKB1", "CXCL8", "CCL2"),
+    stress_response = c("HSP90AA1", "HSPA1A", "HSPB1", "DNAJB1", "HSP90AB1"),
+    interferon_response = c("IFIT1", "IFIT2", "IFIT3", "MX1", "ISG15", "OAS1"),
+    
+    # Cell fate and function
+    apoptosis = c("BAX", "BAK1", "CASP3", "CASP7", "PARP1"),
+    
+    # Metabolic states
+    glycolysis = c("HK1", "HK2", "PFKP", "ALDOA", "GAPDH", "PKM"),
+    oxidative_phosphorylation = c("COX4I1", "COX5A", "COX6A1", "ATP5F1A", "NDUFB1"),
+    
+    # Quality control
+    mitochondrial_activity = c("MT-CO1", "MT-CO2", "MT-ND1", "MT-ND4", "MT-CYB"),
+    ribosomal_activity = c("RPL3", "RPS3", "RPS18", "RPL4", "RPS4X", "RPL5")
+  ))
+}
+```
+
+#### Signature Score Calculation
+- Uses `AddModuleScore()` for robust multi-gene signatures
+- Accounts for background gene expression
+- Enables pathway-level analysis beyond individual genes
+
+### 3. Biology-Driven Resolution Selection
+
+#### Intelligent Resolution Selection
+```r
+select_best_resolution_by_biology <- function(seurat_obj, resolutions) {
+  # Tests multiple resolutions
+  # Evaluates marker gene quality and biological interpretability
+  # Selects optimal resolution based on:
+  # - Number of clusters (3-15 range)
+  # - Marker gene strength (log2FC and significance)
+  # - Biological coherence score
+}
+```
+
+**Selection Criteria:**
+- Cluster count between 3-15 (biologically reasonable)
+- Strong marker genes (log2FC > 0.25, min.pct > 0.15)
+- High average log2FC across markers
+- Biological interpretability score
+
+### 4. Enhanced Cell Type Assignment
+
+#### Dual-Approach Cell Type Annotation
+
+The pipeline uses a sophisticated dual approach:
+
+**Step 1: Individual Cell Annotation (SingleR)**
+```r
+# Cell-by-cell annotation using reference databases
+ref <- celldex::HumanPrimaryCellAtlasData()
+singler_results <- SingleR(test = seurat_sce, ref = ref, labels = ref$label.fine)
+```
+
+**Step 2: Cluster Consensus Assignment**
+```r
+assign_celltypes_improved <- function(seurat_obj, markers) {
+  # For each cluster:
+  # 1. Collect individual cell type annotations
+  # 2. Find consensus (most common types)
+  # 3. Integrate with marker gene analysis
+  # 4. Assign confidence scores
+  # 5. Provide alternative type suggestions
+}
+```
+
+**Output Annotations:**
+- `individual_celltype`: Cell-by-cell SingleR annotations
+- `data_driven_celltype`: Cluster consensus annotations
+- `celltype_confidence`: Assignment confidence scores
+
+### 5. Enhanced Cell Cycle Analysis
+
+#### G0 Detection
+```r
+detect_g0_enhanced <- function(seurat_obj) {
+  # Uses Seurat's built-in S and G2M gene sets
+  # Calculates S.Score and G2M.Score
+  # Identifies G0 cells: low S AND low G2M (bottom 25%)
+  # Creates enhanced phase annotation: G0, G1, S, G2M
+}
+```
+
+**Cell Cycle Phases:**
+- **G0**: Quiescent cells (low proliferation markers)
+- **G1**: Gap 1 phase
+- **S**: DNA synthesis phase  
+- **G2M**: Gap 2 and mitosis phases
+
+## Data Processing Modules
+
+### Module 1: Data Loading and Quality Control
+
+#### Data Import
+```r
+# Reads 10X Genomics format data
+data <- Read10X(input_dir, gene.column = 2, strip.suffix = TRUE)
+seurat_obj <- CreateSeuratObject(counts = data, project = prefix, 
+                                min.cells = 3, min.features = 200)
+```
+
+#### Adaptive QC Thresholds
+```r
+# Calculates adaptive thresholds based on data distribution
+nf_low <- quantile(seurat_obj$nFeature_RNA, 0.05)    # Minimum genes
+nf_high <- quantile(seurat_obj$nFeature_RNA, 0.95)   # Maximum genes  
+mt_high <- quantile(seurat_obj$percent.mt, 0.95)     # Maximum mitochondrial %
+```
+
+**QC Metrics:**
+- `nFeature_RNA`: Number of genes detected per cell
+- `nCount_RNA`: Total UMI counts per cell
+- `percent.mt`: Mitochondrial gene percentage
+
+**Filtering Strategy:**
+- Removes cells with too few genes (bottom 5%)
+- Removes cells with too many genes (top 5% - potential doublets)
+- Removes cells with high mitochondrial content (top 5% - dying cells)
+
+### Module 2: Normalization and Dimensionality Reduction
+
+#### Processing Steps
+```r
+# Standard Seurat workflow
+seurat_obj <- NormalizeData(seurat_obj)                    # Log normalization
+seurat_obj <- FindVariableFeatures(seurat_obj, nfeatures = 3000)  # Feature selection
+seurat_obj <- ScaleData(seurat_obj)                        # Z-score scaling
+seurat_obj <- RunPCA(seurat_obj, npcs = 50)               # PCA
+seurat_obj <- RunUMAP(seurat_obj, dims = 1:optimal_pcs)   # UMAP
+seurat_obj <- RunTSNE(seurat_obj, dims = 1:optimal_pcs)   # t-SNE
+```
+
+#### Parameter Optimization
+- **PCA dimensions**: Adaptively selected (up to 40 or n_cells-1)
+- **UMAP parameters**: n.neighbors=15, min.dist=0.1
+- **t-SNE perplexity**: min(30, floor(n_cells/5))
+
+### Module 3: Clustering and Cell Type Definition
+
+#### Clustering Workflow
+```r
+# Graph-based clustering
+seurat_obj <- FindNeighbors(seurat_obj, dims = 1:optimal_pcs)
+for (res in resolutions) {
+  seurat_obj <- FindClusters(seurat_obj, resolution = res)
+}
+optimal_res <- select_best_resolution_by_biology(seurat_obj, resolutions)
+```
+
+#### Marker Gene Analysis
+```r
+# Find differentially expressed genes
+markers <- FindAllMarkers(seurat_obj, only.pos = TRUE, 
+                         min.pct = 0.25, logfc.threshold = 0.5)
+```
+
+**Marker Gene Criteria:**
+- `only.pos = TRUE`: Only upregulated genes
+- `min.pct = 0.25`: Expressed in ≥25% of cluster cells
+- `logfc.threshold = 0.5`: Minimum log2 fold change
+
+### Module 4: Functional Analysis
+
+#### Signature Score Analysis
+```r
+# Calculate pathway signatures for each cell
+for (sig_name in names(gene_sets)) {
+  seurat_obj <- AddModuleScore(seurat_obj, 
+                              features = list(available_genes), 
+                              name = paste0(sig_name, "_Score"))
+}
+```
+
+#### Metabolic State Analysis
+- **Glycolysis vs Oxidative Phosphorylation**: Scatter plot analysis
+- **Cell type metabolic preferences**: Pathway scores by cell type
+- **Metabolic heterogeneity**: Within-cluster variation
+
+#### Cell Cycle Distribution
+- **Phase distribution by cell type**: Proliferation patterns
+- **G0 cell identification**: Quiescent cell populations
+- **Cell cycle gene expression**: S and G2M scores
+
+### Module 5: Interactive Dashboard Creation
+
+#### Comprehensive Dashboard Features
+
+**Plot Categories:**
+1. **Dimension Reduction**: UMAP/t-SNE with clusters and cell types
+2. **Quality Control**: Gene counts, UMI counts, mitochondrial %
+3. **Cell Cycle**: Phase assignments and scores
+4. **Functional Signatures**: Pathway activity scores
+5. **Special Analyses**: Metabolic comparisons
+
+**Interactive Features:**
+- **Hover tooltips**: Detailed cell information
+- **Zoom and pan**: Plotly controls
+- **Organized navigation**: Categorized sidebar
+- **Responsive design**: Works on desktop and mobile
+
+#### Dashboard Structure
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- Comprehensive styling and responsive design -->
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <div class="header">
+        <!-- Analysis summary statistics -->
+      </div>
+      <div class="main-content">
+        <div class="sidebar">
+          <!-- Organized plot navigation -->
+        </div>
+        <div class="plot-container">
+          <!-- Interactive plot iframes -->
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+```
+
+### Module 6: JSON Export System
+
+#### Comprehensive Data Export
+```r
+comprehensive_export <- list(
+  metadata = list(
+    dataset_info = list(...),     # Dataset statistics
+    processing_info = list(...),  # Analysis parameters
+    qc_thresholds = list(...)     # Quality control cutoffs
+  ),
+  outputs = list(
+    plots = plots_catalog,        # File paths and descriptions
+    data_files = data_files_catalog  # Data file locations
+  ),
+  data = list(
+    cells = cell_data,           # Per-cell information
+    clusters = cluster_stats,     # Cluster statistics
+    markers = markers_data,       # Marker genes
+    plots = plots_data           # Plot-ready data
+  ),
+  summary = list(...)            # Summary statistics
+)
+```
+
+#### Export Components
+- **Cell-level data**: Coordinates, annotations, QC metrics
+- **Cluster statistics**: Centroids, composition, marker genes
+- **Plot data**: Ready for web visualization
+- **Metadata**: Analysis parameters and quality metrics
+- **File catalog**: Organized index of all outputs
+
+## Output Structure
+
+### Generated Files
+
+#### Static Plots (PNG)
+```
+01_QC/
+├── QC_raw_data.png              # Raw QC metrics
+├── QC_boundaries.png            # Filtering boundaries  
+└── QC_filtered_data.png         # Post-filtering metrics
+
+02_Clustering/
+├── UMAP_clusters.png            # UMAP clustering
+├── tSNE_clusters.png            # t-SNE clustering
+├── UMAP_individual_celltypes.png     # Individual annotations
+├── UMAP_data_driven_celltypes.png    # Consensus annotations
+└── UMAP_celltype_confidence.png      # Confidence scores
+
+03_Markers/
+├── marker_heatmap_by_cluster.png     # Marker gene heatmap
+└── cluster_to_celltype_mapping.csv   # Cluster mappings
+
+04_Functional/
+├── pathway_signatures.png            # Pathway scores
+├── universal_cellular_signatures.png # Core signatures
+├── metabolic_states_by_celltype.png  # Metabolic analysis
+├── cell_cycle_phases_enhanced.png    # Cell cycle phases
+├── G0_cells.png                      # Quiescent cells
+├── phase_distribution_by_celltype.png # Phase distributions
+├── cell_type_distribution.png         # Individual-based counts
+└── cell_type_distribution_cluster_based.png # Cluster-based counts
+```
+
+#### Interactive Dashboard (HTML)
+```
+05_Interactive/
+├── comprehensive_dashboard.html  # Main dashboard
+├── index.html                   # Redirect page
+├── umap_clusters.html          # Individual interactive plots
+├── umap_celltypes.html         # ...
+├── tsne_clusters.html          # ...
+└── [additional_plots].html     # ...
+```
+
+#### Data Exports
+```
+06_JSON_Export/
+├── comprehensive_analysis.json  # Complete analysis
+├── cell_data.json              # Per-cell data
+├── cluster_data.json           # Cluster statistics
+├── plots_data.json             # Plot coordinates
+├── marker_genes.json           # Marker gene results
+├── outputs_catalog.json        # File catalog
+└── README.md                   # Documentation
+
+# Root level
+├── seurat_object.rds           # Complete Seurat object
+└── ANALYSIS_SUMMARY.txt        # Analysis summary
+```
+
+## Key Features
+
+### 1. Dual Cell Type Annotation Strategy
+
+**Individual-based (SingleR)**
+- Cell-by-cell reference-based annotation
+- Uses Human Primary Cell Atlas
+- Provides fine-grained cell type labels
+- Captures cellular heterogeneity
+
+**Cluster-based (Consensus)**
+- Cluster-level consensus annotation
+- Integrates marker gene analysis
+- Provides confidence scores
+- More robust for visualization
+
+### 2. Enhanced Quality Control
+
+**Adaptive Thresholds**
+- Data-driven cutoffs (5th/95th percentiles)
+- Avoids arbitrary fixed thresholds
+- Preserves dataset-specific characteristics
+
+**Comprehensive QC Metrics**
+- Gene count distribution analysis
+- UMI count quality assessment  
+- Mitochondrial gene percentage
+- Visual boundary identification
+
+### 3. Biology-Driven Clustering
+
+**Intelligent Resolution Selection**
+- Tests multiple clustering resolutions
+- Evaluates biological interpretability
+- Selects based on marker gene quality
+- Avoids over/under-clustering
+
+**Marker Gene Integration**
+- High-quality marker identification
+- Biological relevance scoring
+- Confidence-based selection
+
+### 4. Functional Pathway Analysis
+
+**Multi-gene Signatures**
+- Robust pathway-level analysis
+- Background-corrected scoring
+- Human-specific gene sets
+- Metabolic state characterization
+
+**Enhanced Cell Cycle Analysis**
+- G0 (quiescent) cell detection
+- Phase distribution by cell type
+- Proliferation pattern analysis
+
+### 5. Comprehensive Interactive Visualization
+
+**Multi-layered Dashboard**
+- Organized plot categories
+- Interactive hover information
+- Responsive web design
+- Professional presentation
+
+**Data Integration**
+- Seamless plot switching
+- Consistent color schemes
+- Coordinated annotations
+
+### 6. Export and Reproducibility
+
+**JSON Data Export**
+- Web-compatible data formats
+- Complete metadata preservation
+- API-ready structure
+- Cross-platform compatibility
+
+**Reproducible Analysis**
+- Seed management
+- Parameter tracking
+- Version documentation
+- Complete provenance
+
+## Usage Examples
+
+### Basic Analysis
+```bash
+# Minimal analysis with defaults
+Rscript seurat_analysis.R \
+  --input_dir /data/10x_output \
+  --output_dir /results \
+  --prefix experiment_001
+```
+
+### Advanced Configuration
+```bash
+# Custom parameters for large dataset
+Rscript seurat_analysis.R \
+  --input_dir /data/pbmc_10k \
+  --output_dir /results/pbmc_analysis \
+  --prefix pbmc_10k_v1 \
+  --resolutions "0.1,0.2,0.3,0.4,0.5,0.6,0.8,1.0,1.2" \
+  --seed 12345 \
+  --ncores 16
+```
+
+### Accessing Results
+
+#### View Interactive Dashboard
+```bash
+# Open main dashboard in browser
+open /results/prefix_timestamp/05_Interactive/comprehensive_dashboard.html
+```
+
+#### Load Data in R
+```r
+# Load Seurat object for further analysis
+seurat_obj <- readRDS("/results/prefix_timestamp/seurat_object.rds")
+
+# View cluster mappings
+mappings <- read.csv("/results/prefix_timestamp/03_Markers/cluster_to_celltype_mapping.csv")
+```
+
+#### Use JSON Exports
+```javascript
+// Load in web application
+fetch("06_JSON_Export/comprehensive_analysis.json")
+  .then(response => response.json())
+  .then(data => {
+    console.log("Analysis metadata:", data.metadata);
+    console.log("Cell data:", data.data.cells);
+    console.log("Plot catalog:", data.outputs.plots);
+  });
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Memory Requirements
+- **Large datasets (>50k cells)**: Requires 32+ GB RAM
+- **Solution**: Increase swap space or use high-memory system
+
+#### Missing Dependencies
+```r
+# Check for missing packages
+required_packages <- c("Seurat", "SingleR", "celldex", "plotly")
+missing <- required_packages[!sapply(required_packages, requireNamespace, quietly = TRUE)]
+if(length(missing) > 0) {
+  cat("Missing packages:", paste(missing, collapse = ", "))
+}
+```
+
+#### SingleR Reference Issues
+```r
+# If reference download fails
+ref <- tryCatch({
+  celldex::HumanPrimaryCellAtlasData()
+}, error = function(e) {
+  cat("Reference download failed, using alternative...")
+  NULL
+})
+```
+
+#### Low Cell Numbers
+- **Minimum**: 500 cells recommended
+- **Below 200 cells**: May need parameter adjustment
+- **Solution**: Reduce resolution range, adjust neighbor parameters
+
+### Performance Optimization
+
+#### For Large Datasets
+```r
+# Reduce computational load
+max_cells_per_ident <- 200  # Subsample for marker finding
+n_features <- 2000          # Reduce variable features
+npcs <- 30                  # Reduce PCA dimensions
+```
+
+#### For Small Datasets
+```r
+# Increase sensitivity
+max_cells_per_ident <- Inf  # Use all cells
+min_pct <- 0.1             # Lower expression threshold
+logfc_threshold <- 0.1     # Lower fold change threshold
+```
+
+### Output Validation
+
+#### Check Analysis Quality
+```r
+# Load and validate results
+seurat_obj <- readRDS("seurat_object.rds")
+
+# Check cluster quality
+table(Idents(seurat_obj))
+
+# Validate cell type assignments
+table(seurat_obj$data_driven_celltype, useNA = "always")
+
+# Check signature scores
+signature_cols <- grep("_Score1$", colnames(seurat_obj[[]]), value = TRUE)
+summary(seurat_obj[[signature_cols]])
+```
+
+#### Verify Interactive Plots
+```bash
+# Check that HTML files were generated
+ls -la 05_Interactive/*.html
+
+# Verify file sizes (should be >100KB for interactive plots)
+du -h 05_Interactive/*.html
+```
+
+## Citation and Acknowledgments
+
+This pipeline integrates several key tools and methodologies:
+
+- **Seurat**: Hao et al. Cell 2021
+- **SingleR**: Aran et al. Nature Immunology 2019
+- **Plotly**: Interactive web-based visualization
+- **celldex**: Reference cell type databases
+
+For analysis-specific citations, see the generated `ANALYSIS_SUMMARY.txt` file which includes R version and package versions used.
+
+---
+
+**Note**: This pipeline is designed for human single-cell RNA-seq data. For other species, modify the gene signatures and reference databases in the `get_human_gene_sets()` function and SingleR reference selection.
