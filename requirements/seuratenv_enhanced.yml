@@ -1,0 +1,48 @@
+---
+name: seurat_env_enhanced2
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.1.3
+  - r-seurat
+  - r-tidyverse
+  - r-data.table
+  - r-patchwork
+  - r-cowplot
+  - r-ggplot2
+  - r-devtools
+  - r-optparse
+  - r-matrix
+  - r-rcolorbrewer
+  - r-plotly
+  - r-viridis
+  - r-htmlwidgets
+  - r-htmltools
+  - r-jsonlite
+  - r-dplyr
+  - r-stringr
+  - r-magrittr
+  - r-rlang
+  - r-glue
+  - r-scales
+  - r-reshape2
+  - r-gridextra
+  - r-igraph
+  - r-future
+  - r-future.apply
+  - r-readr
+  - r-foreach
+  - r-doparallel
+  - bioconductor-singlecellexperiment
+  - bioconductor-summarizedexperiment
+  - bioconductor-singler
+  - bioconductor-celldex
+  - bioconductor-biocgenerics
+  - bioconductor-genomicranges
+  - bioconductor-biobase
+  - bioconductor-iranges
+  - bioconductor-s4vectors
+  - libopenblas
+  - bioconductor-ucell
