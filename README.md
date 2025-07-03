@@ -5,6 +5,9 @@ This repository contains a modular pipeline for preprocessing, analyzing, and vi
 ## Repository Structure
 
 
+## Repository Structure
+
+```
 ├── Code/
 │   ├── submit_pipeline.sh      # SLURM job submission wrapper
 │   ├── submit_pipeline_2.sh    # Alternative SLURM logic (optional)
@@ -17,6 +20,7 @@ This repository contains a modular pipeline for preprocessing, analyzing, and vi
 │   └── seuratenv_enhanced.yml  # Conda environment for R
 │
 └── README.md
+---
 
 ## Requirements
 
