@@ -25,6 +25,30 @@ This repository contains a modular pipeline for preprocessing, analyzing, and vi
 - R (v4.2.0 or newer)
 - Conda (Anaconda or Miniconda)
 
+## Dependencies and Setup
+
+Specific dependencies used in this project are all found in the .yml file in the requirements folder of this repository, the most important packages are listed below.
+
+#### Core Analysis
+- `Seurat` - Main single-cell analysis framework
+- `optparse` - Command line argument parsing
+- `dplyr` - Data manipulation
+- `future` - Parallel processing
+
+#### Visualization
+- `ggplot2` - Static plotting
+- `patchwork` - Plot composition
+- `plotly` - Interactive visualizations
+- `viridis` - Color scales
+- `htmlwidgets` - Web widget creation
+
+#### Cell Type Annotation
+- `SingleR` - Reference-based cell type annotation
+
+#### Data Export
+- `jsonlite` - JSON export functionality
+- `reshape2` - Data reshaping
+
 To install the R environment:
 
 conda env create -f requirements/seuratenv_enhanced.yml  
