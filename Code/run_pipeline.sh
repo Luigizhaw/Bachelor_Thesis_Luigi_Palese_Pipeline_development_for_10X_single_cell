@@ -15,8 +15,8 @@ mkdir -p "$gene_out"
 echo " Running STARsolo..."
 STAR --runThreadN 8 \
      --genomeDir "${base_dir}/genomeDir/" \
-     --readFilesIn "${base_dir}/pbmc_1k_v3_fastqs/pbmc_1k_v3_S1_L001_R2_001.fastq.gz" \
-                   "${base_dir}/pbmc_1k_v3_fastqs/pbmc_1k_v3_S1_L001_R1_001.fastq.gz" \
+    --readFilesIn "${base_dir}/pbmc_1k_v3_fastqs/pbmc_1k_v3_S1_L001_R2_001.fastq.gz,${base_dir}/pbmc_1k_v3_fastqs/pbmc_1k_v3_S1_L002_R2_001.fastq.gz" \
+                  "${base_dir}/pbmc_1k_v3_fastqs/pbmc_1k_v3_S1_L001_R1_001.fastq.gz,${base_dir}/pbmc_1k_v3_fastqs/pbmc_1k_v3_S1_L002_R1_001.fastq.gz" \
      --readFilesCommand zcat \
      --soloType Droplet \
      --soloCBwhitelist "${base_dir}/genomeDir/whitelist.txt" \
